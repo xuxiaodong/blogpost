@@ -1,0 +1,57 @@
+#!/usr/bin/env perl
+#
+# A simple cli client for WordPress
+# Author: Xu Xiaodong <xxdlhy@gmail.com>, 2010
+# License: GPLv3
+#
+
+use strict;
+use warnings;
+
+use XMLRPC::Lite;
+
+my $url    = 'http://linuxtoy.org/xmlrpc.php';
+my $client = XMLRPC::Lite->proxy($url);
+
+my $username = '';
+my $password = '';
+
+my $blogid  = 1;
+my $publish = 1;
+
+my $post_ref;
+$post_ref->{title}       = shift;
+$post_ref->{wp_slug}     = shift;
+$post_ref->{mt_keywords} = shift;
+
+my $category = shift;
+@{ $post_ref->{categories} } = split /, /, $category;
+
+my $content = shift;
+open my $content_fh, '<', $content
+    or die "Can't open $content: $!\n";
+while (<$content_fh>) {
+    $post_ref->{description} .= $_;
+}
+close $content_fh;
+
+my $postid = shift;
+my $new_post;
+my $edit_post;
+if ($postid) {
+    my $date = qx(date -u +%Y%m%dT%T);
+    $post_ref->{dateCreated} = $date;
+    $edit_post = $client->call( 'metaWeblog.editPost',
+        $postid, $username, $password, $post_ref, $publish );
+}
+else {
+    $new_post = $client->call( 'metaWeblog.newPost',
+        $blogid, $username, $password, $post_ref, $publish );
+}
+
+if ( $new_post or $edit_post ) {
+    print "Post success.\n";
+}
+else {
+    print "Post fail.\n";
+}
